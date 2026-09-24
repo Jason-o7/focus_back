@@ -1,24 +1,38 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
-import { AuthService } from './auth.service';
+import { AuthResponse, AuthService, AuthTokens } from './auth.service';
+import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SignInDto } from './dto/sign-in.dto';
 import { SignUpDto } from './dto/sign-up.dto';
+import { Public } from './public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  // TODO: return the same payload as signin (accessToken + user) once JWT exists
+  @Public()
   @Post('signup')
-  async signUp(@Body() dto: SignUpDto): Promise<{ message: string }> {
-    await this.authService.signUp(dto);
-    return { message: 'Account created' };
+  signUp(@Body() dto: SignUpDto): Promise<AuthResponse> {
+    return this.authService.signUp(dto);
   }
 
-  // TODO: return accessToken + user once JWT exists
+  @Public()
   @Post('signin')
   @HttpCode(HttpStatus.OK)
-  async signIn(@Body() dto: SignInDto): Promise<{ message: string }> {
-    await this.authService.signIn(dto);
-    return { message: 'Signed in' };
+  signIn(@Body() dto: SignInDto): Promise<AuthResponse> {
+    return this.authService.signIn(dto);
+  }
+
+  @Public()
+  @Post('refresh')
+  @HttpCode(HttpStatus.OK)
+  refresh(@Body() dto: RefreshTokenDto): Promise<AuthTokens> {
+    return this.authService.refresh(dto.refreshToken);
+  }
+
+  @Public()
+  @Post('signout')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  signOut(@Body() dto: RefreshTokenDto): Promise<void> {
+    return this.authService.signOut(dto.refreshToken);
   }
 }
