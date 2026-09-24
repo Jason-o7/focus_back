@@ -10,15 +10,15 @@ import {
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
-export type SessionMode = 'timer' | 'stopwatch';
+export type StudySessionMode = 'timer' | 'stopwatch';
 
-@Entity('sessions')
+@Entity('study_sessions')
 @Index(['userId', 'startedAt'])
 @Check(`"mode" IN ('timer', 'stopwatch')`)
 @Check(`"ended_at" >= "started_at"`)
 @Check(`"ended_at" <= "started_at" + interval '25 hours'`)
 @Check(`"focused_ms" >= 0`)
-export class Session {
+export class StudySession {
   @PrimaryColumn('uuid')
   id: string;
 
@@ -30,7 +30,7 @@ export class Session {
   user: User;
 
   @Column({ type: 'varchar', length: 10 })
-  mode: SessionMode;
+  mode: StudySessionMode;
 
   @Column({ name: 'started_at', type: 'timestamptz' })
   startedAt: Date;
