@@ -1,7 +1,12 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 import { PublicUser, toPublicUser } from '../auth/auth.service';
+import { UsersService } from '../users/users.service';
 import { StudySessionDto } from './dto/create-study-sessions.dto';
 import {
   StudySession,
@@ -21,6 +26,10 @@ export interface StudySessionResponse {
   focusedMs: number;
   day: string;
   createdAt: number;
+}
+
+export interface StudySessionListResponse {
+  sessions: StudySessionResponse[];
   user: PublicUser;
 }
 // --------------------------
@@ -30,7 +39,30 @@ export class StudySessionsService {
   constructor(
     @InjectRepository(StudySession)
     private readonly studySessionsRepository: Repository<StudySession>,
+    private readonly usersService: UsersService,
   ) {}
+
+  // ---------------------------------------------------------------------------
+  // F I N D - A L L
+
+  async findAll(userId: string): Promise<StudySessionListResponse> {
+    // 1. Get the user data for this userId, if it exists
+    const user = await this.usersService.findById(userId);
+    // 1.1 If the user doesn't exist, throw an UnauthorizedException
+    if (!user) throw new UnauthorizedException();
+
+    // 2. Read all study sessions of this user, oldest first
+    const sessions = await this.studySessionsRepository.find({
+      where: { userId },
+      order: { startedAt: 'ASC' },
+    });
+
+    // 3. Return the list of study sessions, with the user once at the end
+    return {
+      sessions: sessions.map(toStudySessionResponse),
+      user: toPublicUser(user),
+    };
+  }
 
   // ---------------------------------------------------------------------------
   // C R E A T E
@@ -38,7 +70,7 @@ export class StudySessionsService {
   async create(
     userId: string,
     sessions: StudySessionDto[],
-  ): Promise<StudySessionResponse[]> {
+  ): Promise<StudySessionListResponse> {
     // 1. Identify all errors in the study sessions and throw
     //    a single BadRequestException with all of them
     const errors = sessions.flatMap((session, index) =>
@@ -66,15 +98,22 @@ export class StudySessionsService {
       .orIgnore()
       .execute();
 
-    // 3. Read back the rows of this user as they are stored in the database,
-    //    together with the user they belong to
+    // 3. Get the user data for this userId, if it exists
+    const user = await this.usersService.findById(userId);
+    // 3.1 If the user doesn't exist, throw an UnauthorizedException
+    if (!user) throw new UnauthorizedException();
+
+    // 4. Read back the rows of this user as they are stored in the database
     const stored = await this.studySessionsRepository.find({
       where: { id: In(sessions.map((session) => session.id)), userId },
-      relations: { user: true },
       order: { startedAt: 'ASC' },
     });
-    // 4. Return them in the response format
-    return stored.map(toStudySessionResponse);
+
+    // 5. Return the list of study sessions, with the user once at the end
+    return {
+      sessions: stored.map(toStudySessionResponse),
+      user: toPublicUser(user),
+    };
   }
 }
 
@@ -87,7 +126,6 @@ function toStudySessionResponse(session: StudySession): StudySessionResponse {
     focusedMs: session.focusedMs,
     day: session.day,
     createdAt: session.createdAt.getTime(),
-    user: toPublicUser(session.user),
   };
 }
 
