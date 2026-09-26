@@ -1,12 +1,29 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
+import { PublicUser, toPublicUser } from '../auth/auth.service';
 import { StudySessionDto } from './dto/create-study-sessions.dto';
-import { StudySession } from './entities/study-session.entity';
+import {
+  StudySession,
+  StudySessionMode,
+} from './entities/study-session.entity';
 
 const HOUR_MS = 60 * 60 * 1000;
 const CLOCK_SKEW_MS = 60 * 1000;
 const MAX_PART_MS = 25 * HOUR_MS;
+
+// R E S P O N S E - S T R U C T U R E S
+export interface StudySessionResponse {
+  id: string;
+  mode: StudySessionMode;
+  startedAt: number;
+  endedAt: number;
+  focusedMs: number;
+  day: string;
+  createdAt: number;
+  user: PublicUser;
+}
+// --------------------------
 
 @Injectable()
 export class StudySessionsService {
@@ -18,7 +35,10 @@ export class StudySessionsService {
   // ---------------------------------------------------------------------------
   // C R E A T E
 
-  async create(userId: string, sessions: StudySessionDto[]): Promise<void> {
+  async create(
+    userId: string,
+    sessions: StudySessionDto[],
+  ): Promise<StudySessionResponse[]> {
     // 1. Identify all errors in the study sessions and throw
     //    a single BadRequestException with all of them
     const errors = sessions.flatMap((session, index) =>
@@ -45,7 +65,30 @@ export class StudySessionsService {
       )
       .orIgnore()
       .execute();
+
+    // 3. Read back the rows of this user as they are stored in the database,
+    //    together with the user they belong to
+    const stored = await this.studySessionsRepository.find({
+      where: { id: In(sessions.map((session) => session.id)), userId },
+      relations: { user: true },
+      order: { startedAt: 'ASC' },
+    });
+    // 4. Return them in the response format
+    return stored.map(toStudySessionResponse);
   }
+}
+
+function toStudySessionResponse(session: StudySession): StudySessionResponse {
+  return {
+    id: session.id,
+    mode: session.mode,
+    startedAt: session.startedAt.getTime(),
+    endedAt: session.endedAt.getTime(),
+    focusedMs: session.focusedMs,
+    day: session.day,
+    createdAt: session.createdAt.getTime(),
+    user: toPublicUser(session.user),
+  };
 }
 
 function crossFieldErrors(session: StudySessionDto, path: string): string[] {
