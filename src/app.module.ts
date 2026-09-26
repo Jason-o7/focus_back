@@ -6,7 +6,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { UsersModule } from './users/users.module';
-import { SessionsModule } from './sessions/sessions.module';
+import { StudySessionsModule } from './study-sessions/study-sessions.module';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 
@@ -24,7 +24,7 @@ import { validateEnv } from './config/env.validation';
     }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 120 }]),
     UsersModule,
-    SessionsModule,
+    StudySessionsModule,
     AuthModule,
   ],
   controllers: [AppController],

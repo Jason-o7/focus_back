@@ -185,6 +185,6 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-function toPublicUser({ id, email, username }: User): PublicUser {
+export function toPublicUser({ id, email, username }: User): PublicUser {
   return { id, email, username };
 }

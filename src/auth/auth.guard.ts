@@ -43,8 +43,8 @@ export class AuthGuard implements CanActivate {
     if (type !== 'Bearer' || !token) throw new UnauthorizedException();
 
     try {
-      // 4. Verify the signature and expiration of the JWT and save the payload
-      //    in request.user
+      // 4. Verify the signature and expiration of the JWT
+      //    and save the payload in request.user to be used in the controller
       request.user = await this.jwtService.verifyAsync<JwtPayload>(token);
     } catch {
       // 4.1 If the JWT is invalid or expired, throw an UnauthorizedException
